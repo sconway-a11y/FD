@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Company 1 - Annual Performance Reviews</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* Custom styles to match the Yelp aesthetic */
+        html {
+            scroll-behavior: smooth;
+        }
+        body {
+            background-color: #f7f7f7; /* Light beige/grey background */
+            font-family: 'Inter', sans-serif;
+            padding-bottom: 50px;
+            scroll-snap-type: y mandatory; /* Enable vertical scroll snapping */
+        }
+        .yelp-header {
+            background-color: #d32323; /* Yelp Red */
+            height: 60px;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+            position: sticky; /* Keep the header visible */
+            top: 0;
+            z-index: 10;
+        }
+        .yelp-logo {
+            font-size: 32px;
+            font-weight: 800;
+            color: white;
+            letter-spacing: -2px;
+        }
+        .yelp-star {
+            color: #d32323; /* Yelp Red for ratings */
+            font-size: 20px;
+        }
+        .review-card {
+            background-color: white;
+            border: 1px solid #e6e6e6;
+            border-radius: 8px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+            /* Adjustments for "slide" effect: increased size and scroll snapping */
+            margin: 40px auto; 
+            max-width: 1100px; /* Significantly wider */
+            width: 90%; 
+            min-height: 85vh; /* Takes up most of the vertical screen space */
+            scroll-snap-align: start; /* Snap to the start of the card when scrolling */
+        }
+        .reviewer-sidebar {
+            background-color: #f5f5f5;
+            border-right: 1px solid #e6e6e6;
+            min-width: 150px;
+            padding: 20px;
+        }
+        /* New class to manage content area layout for fixed height card */
+        .review-content-area {
+            flex-grow: 1;
+        }
+        .gold-star {
+            color: #ff9d00; /* Yelp Gold */
+            font-size: 20px;
+        }
+        .empty-star {
+            color: #cccccc;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Red Header Bar -->
+    <header class="yelp-header">
+        <div class="yelp-logo">yelp<span class="text-sm align-super">★</span></div>
+    </header>
+
+    <div class="max-w-4xl mx-auto pt-6 px-4">
+        <h1 class="text-3xl font-bold text-gray-800">Wolcott Volunteer Fire Department - Company 1</h1>
+        <p class="text-gray-500 mb-6">Annual Performance Reviews</p>
+
+        <!-- Audio Control Button -->
+        <div class="mb-6">
+            <button id="audio-toggle-button" 
+                    class="px-4 py-2 bg-red-600 text-white font-bold rounded-lg shadow-lg hover:bg-red-700 transition duration-150 ease-in-out flex items-center"
+                    disabled>
+                <svg id="volume-icon" xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <!-- Muted Icon Path -->
+                    <path fill="currentColor" d="M11 5L6 9H2v6h4l5 5V5zm11 4l-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4 1-1 4 4 4-4z"/>
+                </svg>
+                <span id="button-text">Loading Audio...</span>
+            </button>
+            <p id="audio-hint" class="text-sm text-gray-500 mt-2">Initializing audio system...</p>
+             <p id="audio-error" class="text-sm text-red-600 mt-2 hidden">
+                ⚠️ **Audio Loading Failed:** Could not load the MP3 file. The link is either broken or blocked by security policies. **Please replace the URL with a direct, publicly accessible MP3 link.**
+            </p>
+        </div>
+    </div>
+    
+    <!-- We removed the <audio> element entirely -->
+
+    <!-- Main Container for Reviews -->
+    <div id="reviews-container">
+        <!-- Reviews will be injected here by JavaScript -->
+    </div>
+
+    <script>
+        // --- Web Audio API Control (Direct Fetch and Buffer) ---
+        let audioContext;
+        let audioBuffer; // Holds the decoded audio data
+        let audioSource = null; // Holds the currently playing source node
+        let isPlaying = false; 
+        
+        // --- IMPORTANT: MP3 URL UPDATED TO THE MORE RELIABLE RAW.GITHUBUSERCONTENT.COM LINK ---
+        // New URL format: https://raw.githubusercontent.com/{user}/{repo}/{branch}/{file_path}
+        const audioUrl = "https://raw.githubusercontent.com/sconway-a11y/FD/main/2025_Theme.mp3"; 
+        // -----------------------------------------------------------------
+
+        const button = document.getElementById('audio-toggle-button');
+        const buttonText = document.getElementById('button-text');
+        const volumeIcon = document.getElementById('volume-icon');
+        const audioHint = document.getElementById('audio-hint');
+        const audioError = document.getElementById('audio-error');
+
+
+        // Function to initialize AudioContext and load the file data
+        async function loadAudioFile() {
+            try {
+                button.disabled = true;
+                audioHint.textContent = "Fetching audio data...";
+
+                // 1. Initialize AudioContext on first non-user-gesture call
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // 2. Fetch the raw audio data
+                console.log(`Fetching audio from: ${audioUrl}`);
+                const response = await fetch(audioUrl);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const arrayBuffer = await response.arrayBuffer();
+
+                audioHint.textContent = "Decoding audio buffer...";
+
+                // 3. Decode the audio data
+                audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                // Success: Update button state
+                console.log("Audio file successfully loaded and decoded.");
+                button.disabled = false;
+                buttonText.textContent = "Start Theme Music (Muted)";
+                audioHint.textContent = "Click to unmute and start the looping audio.";
+                audioError.classList.add('hidden');
+
+            } catch (e) {
+                // Failure: Show error message
+                console.error("Critical Audio Load Error:", e);
+                buttonText.textContent = "Audio Load Failed";
+                audioHint.textContent = "Audio failed to load. Check console for details.";
+                audioError.classList.remove('hidden');
+                button.disabled = true;
+            }
+        }
+
+        function startPlayback() {
+            if (!audioBuffer || isPlaying) return;
+
+            // 1. Create a new source node from the buffer
+            audioSource = audioContext.createBufferSource();
+            audioSource.buffer = audioBuffer;
+            audioSource.loop = true; // Enable looping
+            
+            // 2. Create Gain Node for Muting/Unmuting
+            const gainNode = audioContext.createGain();
+            audioSource.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+
+            // Set initial volume to 1 (unmuted)
+            gainNode.gain.setValueAtTime(1, audioContext.currentTime);
+
+            // 3. Start the playback
+            audioSource.start(0);
+
+            isPlaying = true;
+            buttonText.textContent = "Mute Theme Music (Playing)";
+            audioHint.textContent = "Music is now playing and looping.";
+            volumeIcon.innerHTML = `<path fill="currentColor" d="M11 5L6 9H2v6h4l5 5V5zM15 12a3 3 0 01-.448 1.666M17.5 12c.5 1.776 1.5 3.553 3.5 5.334M15 12a3 3 0 00-.448-1.666"/>`;
+        }
+
+        function stopPlayback() {
+            if (!audioSource || !isPlaying) return;
+
+            // Stop the source node gracefully
+            audioSource.stop(0);
+            audioSource = null;
+
+            isPlaying = false;
+            buttonText.textContent = "Unmute Theme Music (Muted)";
+            audioHint.textContent = "Click to unmute and start the looping audio.";
+            volumeIcon.innerHTML = `<path fill="currentColor" d="M11 5L6 9H2v6h4l5 5V5zm11 4l-4 4 4 4-1 1-4-4-4 4-1-1 4-4-4-4 1-1 4 4 4-4z"/>`;
+        }
+
+
+        async function toggleAudio() {
+            if (!audioBuffer) {
+                console.warn("Audio not ready or failed to load.");
+                return;
+            }
+
+            // Ensure context is running if suspended (required after user gesture)
+            if (audioContext.state === 'suspended') {
+                await audioContext.resume();
+            }
+
+            if (!isPlaying) {
+                console.log("Starting playback via Audio Buffer Source Node...");
+                startPlayback();
+            } else {
+                console.log("Stopping playback...");
+                stopPlayback();
+            }
+        }
+
+        window.onload = function() {
+            button.addEventListener('click', toggleAudio);
+            loadAudioFile(); // Start loading the file immediately
+        };
+
+
+        // --- Review Data and Rendering Logic (unchanged) ---
+        const reviewsData = [
+            {
+                target: "Lieutenant Nicholas Ortelle (The Politician)",
+                reviewerName: "Still Counting Votes",
+                reviewerLoc: "District 9, RI",
+                reviewerStats: "4 friends, 3 reviews",
+                reviewerEmoji: "🧐",
+                stars: 1,
+                title: "Too Much Hand-Shaking, Not Enough Fire-Fighting.",
+                content: "Went in for a basic operational briefing and got cornered by this guy, Ortelle. He kept trying to hand me a pamphlet and telling me how he 'almost' won the department leadership race. The whole presentation felt rehearsed and frankly, desperate. He also gave me some terrible advice on how to stretch hose. Seriously, stick to the campaigning and leave the work to the guys who actually got elected to the fire floor. Bad vibes.",
+                response: 'We appreciate your "feedback," but clearly, you are misunderstanding the term "public service." My focus is on the long game. The election was rigged. I mean, misunderstood. I’ll make sure to get your name and number for next cycle’s petition.'
+            },
+            {
+                target: "Firefighter Juliane Alves (The Sleeper)",
+                reviewerName: "The Ticking Clock",
+                reviewerLoc: "Overhaul Command",
+                reviewerStats: "1 friend, 5 reviews",
+                reviewerEmoji: "😴",
+                stars: 1,
+                title: "1 AM Fire Alarm? More Like a Pager Snooze Alarm.",
+                content: "I'm convinced this service is only available from 9 AM to 5 PM. If you have an emergency after midnight, forget about it. When the tones drop, the engine rolls out short because we're all waiting for someone to drive to Alves' house and physically shake her awake. Her pager sounds like a faint sparrow's tweet in her slumber cave. The only thing louder than the tone is the officer's sigh when we realize we'll be waiting 20 minutes for her to find her clothes.",
+                response: 'We have consulted with NASA and the Sleep Institute. The "sleep-to-alert" transition is undergoing Phase III testing. Our new protocol requires a dedicated five-person rapid deployment team (led by a Lieutenant with an air horn and a gallon of cold brew coffee) to breach the perimeter of her home. The 20-minute delay is now factored into our run sheet under "Alves Wake-Up Fee" and is considered an operational standard. She\'s fine, she just needs more decibels than a jet engine to achieve minimal consciousness.'
+            },
+            {
+                target: "Firefighter Brian Elliott (The Driver)",
+                reviewerName: "Cal Naughton Jr. (B)",
+                reviewerLoc: "Turn 4, Daytona",
+                reviewerStats: "2 friends, 10 reviews",
+                reviewerEmoji: "🏎️",
+                stars: 5,
+                title: "Best Ride to a Call, If You Like Going Really, Really Fast.",
+                content: "The driver, Elliott, operates the engine with the confidence of a true Magic Man. He clearly lives by the mantra, 'If you ain't first, you're last,' because we arrived at the scene roughly 15 minutes before the fire even started. I saw my life flash before my eyes, but also got to witness him eating a half-eaten chicken sandwich while steering with his knee. Extremely dedicated to speed, but you may want to tape your helmet to your head. Shake and Bake, baby.",
+                response: 'I\'m not doing this for the recognition. I\'m doing it for the demons. We\'re here to win. And by win, I mean get the first due hydrant. What are you gonna do with all that speed, Brian? I\'m gonna go fast. P.S. Don\'t worry, Momma said I\'m the best driver.'
+            },
+            {
+                target: "Firefighter Charles Marsella (The Fixer)",
+                reviewerName: "Under Budget 4Life",
+                reviewerLoc: "The Garage",
+                reviewerStats: "7 friends, 4 reviews",
+                reviewerEmoji: "🔧",
+                stars: 5,
+                title: "MacGyver-Level Genius. Runs on Scrap Metal and Discount Coupons.",
+                content: "Chuck can literally fix anything. I once saw him repair a broken ladder with a paperclip, a piece of gum, and an old Band-Aid. His specialty is the 'I can make that better than new for under $500' service. This guy is the only reason our station still has working lights and plumbing. Give him a broken thing, and he will return a functional thing—plus, his apprentice, Bruno is learning all his budget secrets. Legend.",
+                response: 'A pleasure doing business. Why buy it new when you can spend five hours fixing a piece of junk you found in the back of the garage? That’s called resourcefulness, folks. And yes, Bruno is a good assistant, but he still spends too much money.'
+            },
+            {
+                target: "Firefighter Shane Silva (The Sleeper Cell)",
+                reviewerName: "Not Your FBI Agent",
+                reviewerLoc: "The Break Room",
+                reviewerStats: "0 friends, 1 review",
+                reviewerEmoji: "👤",
+                stars: 3,
+                title: "Good Firefighter. Silent Observer. Whispers to Appliances.",
+                content: "Silva is competent, but he is fundamentally creepy. He stares through you, never says much, and I’m positive he only communicates in cryptic codes when he thinks no one is listening. I found him in the kitchen at 4 AM, whispering 'The package is delivered' into a toaster oven. He cleans his gear with military precision. Solid work ethic, but I’m checking around the house for wiretaps every day.",
+                response: 'Firefighter Silva’s performance is fully compliant with all operational security protocols. Any perceived "whispering" is part of the Department’s new, non-verbal, high-efficiency inventory communication training. His loyalty is unquestionable. NOTE: Please delete this response after reading. It was never here.'
+            },
+            {
+                target: "Captain Daniel Costa (The Juggler)",
+                reviewerName: "Pure, Unfiltered Patience",
+                reviewerLoc: "Kindergarten Field Trip",
+                reviewerStats: "12 friends, 9 reviews",
+                reviewerEmoji: "🧘",
+                stars: 5,
+                title: "Robot Captain. Needs to Show Some Stress.",
+                content: "This man is inhumanly calm. He ran the scene of a major incident while simultaneously figuring out how to get out of chaperoning his kids' field trip. I’m convinced he has ice water in his veins instead of blood. I need to see this man sweat. I need to see him panic. He is too good at his job, and it makes the rest of us look bad. Highly recommend for competence, but 0/10 for dramatic tension.",
+                response: 'It\'s simple, really. You just breathe, delegate, and remember that nothing you can do on the fireground is as stressful as dealing with a toddler who hasn\'t had a nap. The key is balance. Also, I definitely did not sweat. That was just water vapor from the steam coming off the engine.'
+            },
+            {
+                target: "Firefighter Derek Marques (Uber Firefighter Award)",
+                reviewerName: "Forced Overtime Fan",
+                reviewerLoc: "The Attic Bedroom",
+                reviewerStats: "1 friend, 1 review",
+                reviewerEmoji: "🤢",
+                stars: 1,
+                title: "The Employee Who Never Leaves. Too Dedicated, Smells Like It.",
+                content: "This guy got the 'Uber Firefighter' award and now he acts like he owns the place. He's always here. Always. The moment you walk into the station, you can smell his exhaustion and his two-day-old gym bag. It’s like he lives in the attic. While his availability is great, the vibe is unsettling. Take a day off, Marques. Seriously. Go home. We miss you when you're gone.",
+                response: 'Firefighter Marques\' commitment is appreciated by management, though maybe not by the company laundry cycle. We have installed a mandatory shower timer and are looking into a scented air freshener program for his locker area. We\'ve also started locking the doors behind him when his shift ends, but he keeps finding new ways back in.'
+            },
+            {
+                target: "Deputy Chief Edward Costa (The Safety Zealot)",
+                reviewerName: "Observed and Safe",
+                reviewerLoc: "NFPA Headquarters",
+                reviewerStats: "99 friends, 4 reviews",
+                reviewerEmoji: "🛑",
+                stars: 4,
+                title: "The Station's Best Guardian, Also the Chief of Hazard Prevention",
+                content: "DC Costa is genuinely great—he ensures every single person gets home safely. However, this level of keen awareness comes with a cost: 45 minutes of a pre-shift safety briefing that includes slides about the dangers of using chipped coffee mugs. He once stopped me from walking past a slightly tilted chair because it was an 'unnecessary trip hazard.' Outstanding commitment to safety, but be prepared for every operational step to be meticulously audited for fun-reduction potential. You'll be safe, but you won't be spontaneous.",
+                response: 'We appreciate the four stars! Safety protocols are the foundation of effective emergency response. Regarding the chair, that was an unacceptable risk. A quick check of NFPA 1500 clearly states that any object capable of causing an injurious fall must be addressed immediately. It\'s called being proactive. Thank you for your review. Now, please check your smoke detector batteries.'
+            }
+        ];
+
+        // Define the array of custom titles for the Response Header, matching the order of reviewsData
+        const newResponseTitles = [
+            "(Lt. Ortelle)", // 0. Lieutenant Nicholas Ortelle (The Politician)
+            "(Capt. Costa)", // 1. Firefighter Juliane Alves (The Sleeper) - Using the user's provided label
+            "(FF Elliott)", // 2. Firefighter Brian Elliott (The Driver)
+            "(FF Marsella)", // 3. Firefighter Charles Marsella (The Fixer)
+            "(The Department of Covert Operations)", // 4. Firefighter Shane Silva (The Sleeper Cell)
+            "(Capt. Costa)", // 5. Captain Daniel Costa (The Juggler)
+            "(The Award Committee)", // 6. Firefighter Derek Marques (Uber Firefighter Award)
+            "(DC Costa)" // 7. Deputy Chief Edward Costa (The Safety Zealot)
+        ];
+
+
+        // Function to generate a random date between Nov 1, 2025 and Dec 10, 2025
+        function generateRandomDate() {
+            // Start date: Nov 1, 2025 (month is 0-indexed, so 10 is Nov)
+            const startDate = new Date(2025, 10, 1);
+            // End date: Dec 10, 2025 (month is 0-indexed, so 11 is Dec)
+            const endDate = new Date(2025, 11, 10);
+
+            const startMs = startDate.getTime();
+            const endMs = endDate.getTime();
+            
+            // Calculate a random timestamp between startMs and endMs
+            const randomMs = startMs + Math.random() * (endMs - startMs);
+            
+            const randomDate = new Date(randomMs);
+            
+            // Format as MM/DD/YYYY
+            const month = String(randomDate.getMonth() + 1).padStart(2, '0');
+            const day = String(randomDate.getDate()).padStart(2, '0');
+            const year = randomDate.getFullYear();
+            
+            return `${month}/${day}/${year}`;
+        }
+
+        function generateStars(rating) {
+            let stars = '';
+            for (let i = 1; i <= 5; i++) {
+                if (i <= rating) {
+                    stars += `<span class="gold-star">★</span>`;
+                } else {
+                    stars += `<span class="empty-star">★</span>`;
+                }
+            }
+            return stars;
+        }
+
+        // Modified to accept index to retrieve the custom response title
+        function createReviewCard(review, index) {
+            // Use the new random date generator
+            const date = generateRandomDate();
+            
+            const card = document.createElement('div');
+            card.className = 'review-card flex flex-col md:flex-row';
+
+            // Get the custom title suffix from the pre-defined array
+            const customTitleSuffix = newResponseTitles[index] || "(Unknown Responder)";
+            
+            card.innerHTML = `
+                <!-- Reviewer Sidebar -->
+                <div class="reviewer-sidebar w-full md:w-1/4 p-4 flex flex-col items-center text-center md:text-left md:items-start rounded-t-lg md:rounded-l-lg md:rounded-t-none">
+                    <div class="text-6xl mb-3">${review.reviewerEmoji}</div>
+                    <div class="font-bold text-gray-700 text-xl md:text-2xl">${review.reviewerName}</div>
+                    <div class="text-base text-gray-500 mb-4">${review.reviewerLoc}</div>
+                    <div class="text-sm text-gray-600">
+                        <span class="font-semibold text-red-500">🔥</span> ${review.reviewerStats}
+                    </div>
+                </div>
+
+                <!-- Review Content -->
+                <div class="p-5 w-full md:w-3/4 flex flex-col review-content-area">
+                    <div class="flex items-center mb-2">
+                        <div class="mr-2">${generateStars(review.stars)}</div>
+                        <div class="text-base text-gray-500">${date}</div>
+                    </div>
+                    
+                    <!-- Increased Title Size: text-xl -> text-3xl -->
+                    <h2 class="text-3xl font-bold text-gray-800 mb-4">${review.title}</h2>
+                    
+                    <!-- Increased Review Content Size: (default/base) -> text-xl -->
+                    <p class="text-xl text-gray-700 mb-6 leading-relaxed flex-grow">${review.content}</p>
+
+                    <!-- Owner Response: Now uses the custom title -->
+                    <div class="mt-auto p-4 border-l-4 border-red-500 bg-gray-50 rounded-r-md">
+                        <!-- Custom Response Header -->
+                        <p class="text-base font-semibold text-red-600 mb-1">Response from the Owner ${customTitleSuffix}</p>
+                        <!-- Increased Response Content Size: text-lg -> text-xl -->
+                        <p class="text-xl text-gray-600 italic leading-relaxed">${review.response}</p>
+                    </div>
+                </div>
+            `;
+            return card;
+        }
+
+        const container = document.getElementById('reviews-container');
+        // Pass the index during iteration
+        reviewsData.forEach((review, index) => {
+            container.appendChild(createReviewCard(review, index));
+        });
+    </script>
+</body>
+</html>
