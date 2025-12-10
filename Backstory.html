@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Systems Audit Backstory</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f7f7f7;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+        }
+        .slide-container {
+            max-width: 900px;
+            width: 90%;
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+            padding: 40px;
+            animation: fadeIn 1s ease-out;
+            min-height: 400px;
+        }
+        .slide-header {
+            color: #d32323; /* Yelp Red / Urgency Red */
+            font-size: 2.75rem; /* Increased size slightly to match larger seal */
+            font-weight: 700;
+            margin-bottom: 20px;
+            border-bottom: 3px solid #f0f0f0;
+            padding-bottom: 10px;
+            /* Added for image alignment */
+            display: flex; 
+            align-items: center;
+            gap: 20px; /* Increased gap for larger image */
+        }
+        .fade-in-text {
+            opacity: 0;
+            animation: fadeIn 0.8s forwards;
+        }
+        .text-section {
+            margin-bottom: 20px;
+            padding-left: 15px;
+            border-left: 4px solid #fecaca;
+        }
+        .centered-content {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            min-height: 300px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #d32323;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="slide" class="slide-container">
+        <header class="slide-header">
+            <!-- Town Seal Image (Updated to h-24 w-24 for larger size) -->
+            <img src="https://github.com/sconway-a11y/FD/blob/main/Wolcott_Seal.jpeg?raw=true" 
+                 alt="Town of Wolcott Seal" 
+                 class="h-24 w-24 object-contain">
+            <!-- Header Text -->
+            <span class="flex-1">Town of Wolcott: HR Compliance Notice</span>
+        </header>
+        
+        <div id="content-area" class="centered-content">
+            <h2 class="text-xl font-semibold mb-6 text-gray-700">Annual Review Compliance Briefing</h2>
+            <button id="start-button" 
+                    class="mt-4 px-6 py-3 bg-red-600 text-white font-bold rounded-lg shadow-lg hover:bg-red-700 transition duration-300 ease-in-out">
+                Start Presentation (Browser Voice)
+            </button>
+            <div id="loading-container" class="mt-4 text-sm text-gray-600 hidden items-center justify-center">
+                <div id="spinner" class="loading-spinner"></div>
+                <p id="loading-message">Waiting for voice to load...</p>
+            </div>
+        </div>
+
+        <button id="next-button" 
+                class="mt-8 px-6 py-3 bg-green-600 text-white font-bold rounded-lg shadow-lg hover:bg-green-700 transition duration-300 ease-in-out hidden"
+                onclick="window.open('https://sconway-a11y.github.io/FD/Year_in_Review.html', '_blank');">
+            Acknowledge & Proceed to Reviews
+        </button>
+    </div>
+
+    <script>
+        // --- Web Speech Synthesis Logic ---
+        
+        const AUTO_ADVANCE_DELAY_MS = 4000; // Fixed delay fallback if speech synthesis fails
+
+        const contentArea = document.getElementById('content-area');
+        const nextButton = document.getElementById('next-button');
+        const startButton = document.getElementById('start-button');
+        const loadingContainer = document.getElementById('loading-container');
+        const loadingMessage = document.getElementById('loading-message');
+
+        const backstoryContent = `
+            Official Compliance Notice from the Town of Wolcott HR and Budget Office
+
+            **SUBJECT:** Mandatory Compliance Notice: Utilizing the Provisional Annual Review Format (P.A.R.F.)
+
+            Due to the catastrophic failure of the Town’s central HR Digital Review (HRD-4000) system—following an unforeseen "non-standard thermal event" possibly related to unauthorized F.D. devices—all traditional personnel review infrastructure is offline.
+
+            To maintain mandatory compliance, the Town Administration has activated the only viable cross-departmental platform: **The Legacy Customer Feedback Module**, regrettably nicknamed the "Yelp Municipal U.I."
+
+            This system will process our internal reviews using the public-facing format.
+
+            **P.A.R.F. KEY OBSERVATIONS:**
+
+            1. **"Reviewers":** Command Staff, Peers, or Internal Auditors.
+            2. **"Stars":** Official performance rating (5 stars = exceptional, 1 star = mandatory counseling).
+            3. **"Response from the Owner":** The official Command Staff rebuttal or clarification.
+
+            The format is unconventional but mandatory until (HRD-4000) is restored (estimated Q3 2026). Please treat all content with appropriate seriousness, despite the iconography.
+
+            Thank you for your cooperation.
+
+            *Wolcott Town Administration. Integrity First. Compliance Always.*
+        `;
+
+        let lines;
+        let lineIndex = 0;
+        let isSpeaking = false;
+        let voice = null;
+        
+        // Function to select a standard, reliable voice
+        function getVoice() {
+            if (voice) return voice;
+            const voices = window.speechSynthesis.getVoices();
+            // Try to find a standard US English voice
+            voice = voices.find(v => v.lang === 'en-US' && v.name.includes('Google') || v.name.includes('Microsoft')) || voices[0];
+            return voice;
+        }
+
+        function speak(text) {
+            return new Promise(resolve => {
+                if (!('speechSynthesis' in window)) {
+                    console.error("Speech Synthesis API not supported.");
+                    // Fallback to time delay if not supported
+                    loadingMessage.textContent = `Browser voice unsupported. Advancing silently in ${AUTO_ADVANCE_DELAY_MS / 1000}s.`;
+                    setTimeout(resolve, AUTO_ADVANCE_DELAY_MS);
+                    return;
+                }
+                
+                // Ensure voices are loaded before speaking
+                if (window.speechSynthesis.getVoices().length === 0) {
+                    window.speechSynthesis.onvoiceschanged = () => {
+                        const v = getVoice();
+                        if (v) speakUtterance(text, v, resolve);
+                        else {
+                            // Fallback if no voice is found even after loading
+                            loadingMessage.textContent = `No voice found. Advancing silently in ${AUTO_ADVANCE_DELAY_MS / 1000}s.`;
+                            setTimeout(resolve, AUTO_ADVANCE_DELAY_MS);
+                        }
+                    };
+                    // If the voices are loaded before the event fires, check again
+                    if (window.speechSynthesis.getVoices().length > 0) {
+                        const v = getVoice();
+                        if (v) speakUtterance(text, v, resolve);
+                        else {
+                            loadingMessage.textContent = `No voice found. Advancing silently in ${AUTO_ADVANCE_DELAY_MS / 1000}s.`;
+                            setTimeout(resolve, AUTO_ADVANCE_DELAY_MS);
+                        }
+                    }
+                } else {
+                    const v = getVoice();
+                    if (v) speakUtterance(text, v, resolve);
+                    else {
+                        loadingMessage.textContent = `No voice found. Advancing silently in ${AUTO_ADVANCE_DELAY_MS / 1000}s.`;
+                        setTimeout(resolve, AUTO_ADVANCE_DELAY_MS);
+                    }
+                }
+            });
+        }
+        
+        function speakUtterance(text, voice, resolve) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            utterance.voice = voice;
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+            
+            utterance.onstart = () => {
+                isSpeaking = true;
+                loadingMessage.textContent = "Speaking...";
+            };
+            
+            utterance.onend = () => {
+                isSpeaking = false;
+                resolve();
+            };
+            
+            utterance.onerror = (event) => {
+                console.error('SpeechSynthesisUtterance.onerror', event);
+                isSpeaking = false;
+                // Fallback to time delay on error
+                loadingMessage.textContent = `Speech Error. Advancing silently in ${AUTO_ADVANCE_DELAY_MS / 1000}s.`;
+                setTimeout(resolve, AUTO_ADVANCE_DELAY_MS);
+            };
+
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function prepareContent() {
+            const cleanedContent = backstoryContent.trim()
+                .replace(/\n\s*\n/g, '\n\n') 
+                .replace(/\*\*(.*?)\*\*/g, '<b>$1</b>')
+                .replace(/## (.*)/g, '<h3>$1</h3>') 
+                .replace(/\*/g, '') 
+                .trim();
+            
+            const rawLines = cleanedContent.split('\n\n').filter(line => line.trim() !== '');
+
+            lines = rawLines.map(line => {
+                let html = line;
+                let text = line; // Text to be spoken
+                
+                if (line.startsWith('1.') || line.startsWith('2.') || line.startsWith('3.')) {
+                    html = `<p class="text-lg mb-2 pl-4">${line}</p>`;
+                } else if (line.includes('Wolcott Town Administration')) {
+                    html = `<p class="text-sm italic text-gray-500 mt-4">${line}</p>`;
+                } else {
+                    html = `<p class="text-lg text-gray-700 leading-relaxed text-section">${line}</p>`;
+                }
+                
+                // Clean up bold tags and extra markers for speech
+                text = text.replace(/<b>/g, '').replace(/<\/b>/g, '').trim();
+
+                return { html, text };
+            });
+        }
+
+        async function displayNextLine() {
+            if (lineIndex >= lines.length) {
+                // All content displayed, show the final button
+                loadingContainer.classList.add('hidden');
+                nextButton.classList.remove('hidden');
+                return;
+            }
+
+            const line = lines[lineIndex];
+            
+            // 1. Prepare HTML element
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = line.html;
+            const element = tempDiv.firstChild; 
+            
+            element.classList.add('fade-in-text');
+            contentArea.appendChild(element);
+
+            // 2. Speak the line and wait for it to finish
+            loadingMessage.textContent = `Loading slide block ${lineIndex + 1} of ${lines.length}...`;
+            await speak(line.text); 
+
+            // 3. Move to the next line
+            lineIndex++;
+            displayNextLine(); 
+        }
+
+        function startPresentation() {
+            // Remove the start content
+            contentArea.innerHTML = '';
+            contentArea.classList.remove('centered-content');
+            loadingContainer.classList.remove('hidden');
+            loadingContainer.classList.add('flex');
+            window.speechSynthesis.cancel(); // Stop any pending speech
+
+            prepareContent();
+            displayNextLine();
+        }
+
+        // Initialize voices on load
+        if ('speechSynthesis' in window && window.speechSynthesis.getVoices().length === 0) {
+            window.speechSynthesis.onvoiceschanged = () => {
+                loadingMessage.textContent = "Browser voice ready.";
+            };
+        } else if ('speechSynthesis' in window) {
+            loadingMessage.textContent = "Browser voice ready.";
+        } else {
+            loadingMessage.textContent = "Browser voice NOT supported. Presentation will use time delay.";
+            // If unsupported, change the button label to reflect the silent nature
+            startButton.textContent = "Start Presentation (Time Delay)";
+        }
+
+        startButton.addEventListener('click', () => {
+            startButton.disabled = true;
+            startButton.classList.add('hidden');
+            
+            // Start presentation
+            setTimeout(startPresentation, 100);
+        });
+    </script>
+</body>
+</html>
